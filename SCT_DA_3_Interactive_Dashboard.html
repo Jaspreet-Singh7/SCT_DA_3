@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SCT DA Task 3 — Interactive Sales Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #131929;
+    --surface2: #1a2235;
+    --border: #1f2e47;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --accent4: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --danger: #ef4444;
+    --cat1: #00d4ff;
+    --cat2: #7c3aed;
+    --cat3: #10b981;
+    --cat4: #f59e0b;
+    --cat5: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 28px; gap: 16px; flex-wrap: wrap;
+  }
+  .header-left h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(20px, 3vw, 32px);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .header-left p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.25);
+    color: var(--accent); padding: 4px 12px; border-radius: 20px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.5px;
+  }
+  .badge::before { content: ''; width:7px; height:7px; background:var(--accent); border-radius:50%; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+
+  /* Filters */
+  .filters {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 24px; padding: 16px 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+  .filter-group label { font-size: 11px; color: var(--muted); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+  .filter-group select {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; outline: none;
+    transition: border-color 0.2s;
+  }
+  .filter-group select:focus { border-color: var(--accent); }
+  .filter-reset {
+    align-self: flex-end;
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+    color: var(--danger); padding: 7px 14px; border-radius: 8px;
+    font-size: 12px; cursor: pointer; font-family: 'DM Sans';
+    transition: all 0.2s;
+  }
+  .filter-reset:hover { background: rgba(239,68,68,0.2); }
+
+  /* KPI Cards */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 18px;
+    position: relative; overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .kpi:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .kpi::after {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+  }
+  .kpi:nth-child(1)::after { background: var(--accent); }
+  .kpi:nth-child(2)::after { background: var(--accent3); }
+  .kpi:nth-child(3)::after { background: var(--accent2); }
+  .kpi:nth-child(4)::after { background: var(--accent4); }
+  .kpi:nth-child(5)::after { background: var(--danger); }
+  .kpi-label { font-size: 11px; color: var(--muted); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
+  .kpi-value { font-family: 'Syne', sans-serif; font-size: clamp(20px,2.5vw,28px); font-weight: 800; }
+  .kpi:nth-child(1) .kpi-value { color: var(--accent); }
+  .kpi:nth-child(2) .kpi-value { color: var(--accent3); }
+  .kpi:nth-child(3) .kpi-value { color: var(--accent2); }
+  .kpi:nth-child(4) .kpi-value { color: var(--accent4); }
+  .kpi:nth-child(5) .kpi-value { color: var(--danger); }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* Charts grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-full { margin-bottom: 20px; }
+  @media(max-width: 900px) { .grid-2,.grid-3 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: rgba(0,212,255,0.3); }
+  .card-title {
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    color: var(--text); margin-bottom: 16px; display: flex;
+    align-items: center; gap: 8px; letter-spacing: 0.3px;
+  }
+  .card-title span { font-size: 16px; }
+  .chart-wrap { position: relative; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; max-height: 320px; overflow-y: auto; }
+  .table-wrap::-webkit-scrollbar { width: 4px; height: 4px; }
+  .table-wrap::-webkit-scrollbar-track { background: var(--surface2); }
+  .table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    background: var(--surface2); color: var(--muted);
+    padding: 8px 12px; text-align: left; font-weight: 500;
+    text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;
+    position: sticky; top: 0; z-index: 2;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 8px 12px; color: var(--text); }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 500;
+  }
+  .pill-high { background: rgba(16,185,129,0.15); color: var(--accent3); border: 1px solid rgba(16,185,129,0.3); }
+  .pill-mod  { background: rgba(0,212,255,0.1);  color: var(--accent);  border: 1px solid rgba(0,212,255,0.2); }
+  .pill-low  { background: rgba(245,158,11,0.1); color: var(--accent4); border: 1px solid rgba(245,158,11,0.3); }
+
+  /* Footer */
+  .footer {
+    text-align: center; padding: 24px 0 8px;
+    color: var(--muted); font-size: 12px;
+    border-top: 1px solid var(--border); margin-top: 8px;
+  }
+  .footer strong { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Superstore Sales Intelligence</h1>
+      <p>HR Employee Attrition & Global Happiness Index — Interactive Analytics Report</p>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <div class="badge">LIVE DASHBOARD</div>
+      <div style="font-size:11px;color:var(--muted)">SkillCraft Technology · Task 03 · Track: DA</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <label>Region</label>
+      <select id="f-region" onchange="applyFilters()">
+        <option value="All">All Regions</option>
+        <option>Central</option><option>East</option>
+        <option>South</option><option>West</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Category</label>
+      <select id="f-category" onchange="applyFilters()">
+        <option value="All">All Categories</option>
+        <option>Furniture</option>
+        <option>Technology</option>
+        <option>Office Supplies</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Segment</label>
+      <select id="f-segment" onchange="applyFilters()">
+        <option value="All">All Segments</option>
+        <option>Consumer</option>
+        <option>Corporate</option>
+        <option>Home Office</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Year</label>
+      <select id="f-year" onchange="applyFilters()">
+        <option value="All">All Years</option>
+        <option>2022</option><option>2023</option><option>2024</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Profit Category</label>
+      <select id="f-profcat" onchange="applyFilters()">
+        <option value="All">All</option>
+        <option>High Profit</option>
+        <option>Moderate Profit</option>
+        <option>Low Profit</option>
+      </select>
+    </div>
+    <button class="filter-reset" onclick="resetFilters()">↺ Reset</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Total Sales</div>
+      <div class="kpi-value" id="kpi-sales">$0</div>
+      <div class="kpi-sub">Gross revenue</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total Profit</div>
+      <div class="kpi-value" id="kpi-profit">$0</div>
+      <div class="kpi-sub">Net earnings</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total Orders</div>
+      <div class="kpi-value" id="kpi-orders">0</div>
+      <div class="kpi-sub">Transactions</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Discount</div>
+      <div class="kpi-value" id="kpi-discount">0%</div>
+      <div class="kpi-sub">Mean discount rate</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Profit Margin</div>
+      <div class="kpi-value" id="kpi-margin">0%</div>
+      <div class="kpi-sub">Profit / Sales</div>
+    </div>
+  </div>
+
+  <!-- Row 1: Monthly trend + Category bar -->
+  <div class="grid-full card">
+    <div class="card-title"><span>📈</span> Monthly Sales & Profit Trend</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="chart-trend"></canvas></div>
+  </div>
+
+  <!-- Row 2: Region pie + Segment bar + Ship donut -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title"><span>🌍</span> Sales by Region</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chart-region"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>📦</span> Sales by Category</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chart-cat"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>👥</span> Sales by Segment</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chart-seg"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 3: Sub-category + Profit distribution -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>🔬</span> Profit by Sub-Category</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="chart-subcat"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🚀</span> Shipping Speed &amp; Profit Quality</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;height:240px">
+        <div class="chart-wrap"><canvas id="chart-ship"></canvas></div>
+        <div class="chart-wrap"><canvas id="chart-profcat"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 4: Data table -->
+  <div class="card grid-full">
+    <div class="card-title"><span>📋</span> Order Details — Filtered View</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Category</th><th>Region</th><th>Segment</th>
+            <th>Sales</th><th>Profit</th><th>Discount</th><th>Year</th>
+            <th>Shipping</th><th>Performance</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    Built by <strong>Jaspreet Singh</strong> · SkillCraft Technology Data Analyst Internship · Task 03 ·
+    <strong>SCT_DA_3</strong> · Track Code: DA
+  </div>
+</div>
+
+<script>
+const RAW = {"kpis": {"total_sales": 438372.09, "total_profit": 71346.58, "total_orders": 495, "avg_discount": 13.0, "profit_margin": 16.3}, "by_category": [{"Category": "Furniture", "Sales": 158916.3, "Profit": 24345.5, "Orders": 161}, {"Category": "Office Supplies", "Sales": 42254.82, "Profit": 8671.93, "Orders": 176}, {"Category": "Technology", "Sales": 237200.97, "Profit": 38329.15, "Orders": 158}], "by_region": [{"Region": "Central", "Sales": 107112.21, "Profit": 17214.6, "Orders": 113}, {"Region": "East", "Sales": 118592.58, "Profit": 19769.78, "Orders": 131}, {"Region": "South", "Sales": 113255.94, "Profit": 18288.2, "Orders": 124}, {"Region": "West", "Sales": 99411.36, "Profit": 16074.0, "Orders": 127}], "by_segment": [{"Segment": "Consumer", "Sales": 125983.87, "Profit": 20108.5, "Orders": 139}, {"Segment": "Corporate", "Sales": 149314.91, "Profit": 26330.18, "Orders": 172}, {"Segment": "Home Office", "Sales": 163073.31, "Profit": 24907.9, "Orders": 184}], "by_subcat": [{"Category": "Furniture", "Sub-Category": "Bookcases", "Sales": 28084.73, "Profit": 4527.03, "Orders": 30}, {"Category": "Furniture", "Sub-Category": "Chairs", "Sales": 50793.51, "Profit": 8401.43, "Orders": 52}, {"Category": "Furniture", "Sub-Category": "Furnishings", "Sales": 35404.2, "Profit": 4990.68, "Orders": 37}, {"Category": "Furniture", "Sub-Category": "Tables", "Sales": 44633.86, "Profit": 6426.36, "Orders": 42}, {"Category": "Office Supplies", "Sub-Category": "Appliances", "Sales": 9489.64, "Profit": 1391.75, "Orders": 40}, {"Category": "Office Supplies", "Sub-Category": "Art", "Sales": 5372.2, "Profit": 1874.49, "Orders": 23}, {"Category": "Office Supplies", "Sub-Category": "Binders", "Sales": 8911.31, "Profit": 1732.1, "Orders": 36}, {"Category": "Office Supplies", "Sub-Category": "Paper", "Sales": 9640.48, "Profit": 1544.03, "Orders": 40}, {"Category": "Office Supplies", "Sub-Category": "Storage", "Sales": 8841.19, "Profit": 2129.56, "Orders": 37}, {"Category": "Technology", "Sub-Category": "Accessories", "Sales": 52016.41, "Profit": 9135.0, "Orders": 37}, {"Category": "Technology", "Sub-Category": "Computers", "Sales": 55988.02, "Profit": 9195.92, "Orders": 37}, {"Category": "Technology", "Sub-Category": "Copiers", "Sales": 59489.6, "Profit": 8278.96, "Orders": 40}, {"Category": "Technology", "Sub-Category": "Phones", "Sales": 69706.94, "Profit": 11719.27, "Orders": 44}], "by_month": [{"Order Year": 2022, "Order Month": 1, "Order Month Name": "Jan", "Sales": 14057.88, "Profit": 2480.34}, {"Order Year": 2022, "Order Month": 2, "Order Month Name": "Feb", "Sales": 5501.24, "Profit": 752.7}, {"Order Year": 2022, "Order Month": 3, "Order Month Name": "Mar", "Sales": 16368.24, "Profit": 2714.29}, {"Order Year": 2022, "Order Month": 4, "Order Month Name": "Apr", "Sales": 10150.41, "Profit": 1318.1}, {"Order Year": 2022, "Order Month": 5, "Order Month Name": "May", "Sales": 10744.04, "Profit": 2235.19}, {"Order Year": 2022, "Order Month": 6, "Order Month Name": "Jun", "Sales": 11559.25, "Profit": 2241.03}, {"Order Year": 2022, "Order Month": 7, "Order Month Name": "Jul", "Sales": 14514.68, "Profit": 1762.68}, {"Order Year": 2022, "Order Month": 8, "Order Month Name": "Aug", "Sales": 16326.84, "Profit": 2471.01}, {"Order Year": 2022, "Order Month": 9, "Order Month Name": "Sep", "Sales": 12315.27, "Profit": 1967.03}, {"Order Year": 2022, "Order Month": 10, "Order Month Name": "Oct", "Sales": 13271.75, "Profit": 2927.73}, {"Order Year": 2022, "Order Month": 11, "Order Month Name": "Nov", "Sales": 8124.39, "Profit": 1443.39}, {"Order Year": 2022, "Order Month": 12, "Order Month Name": "Dec", "Sales": 11057.92, "Profit": 2423.75}, {"Order Year": 2023, "Order Month": 1, "Order Month Name": "Jan", "Sales": 10985.77, "Profit": 1898.79}, {"Order Year": 2023, "Order Month": 2, "Order Month Name": "Feb", "Sales": 15781.7, "Profit": 2535.25}, {"Order Year": 2023, "Order Month": 3, "Order Month Name": "Mar", "Sales": 10874.29, "Profit": 1289.39}, {"Order Year": 2023, "Order Month": 4, "Order Month Name": "Apr", "Sales": 11830.89, "Profit": 1650.03}, {"Order Year": 2023, "Order Month": 5, "Order Month Name": "May", "Sales": 8346.44, "Profit": 1720.02}, {"Order Year": 2023, "Order Month": 6, "Order Month Name": "Jun", "Sales": 9277.65, "Profit": 2014.16}, {"Order Year": 2023, "Order Month": 7, "Order Month Name": "Jul", "Sales": 4224.86, "Profit": 524.63}, {"Order Year": 2023, "Order Month": 8, "Order Month Name": "Aug", "Sales": 17027.19, "Profit": 2119.45}, {"Order Year": 2023, "Order Month": 9, "Order Month Name": "Sep", "Sales": 16042.57, "Profit": 2797.32}, {"Order Year": 2023, "Order Month": 10, "Order Month Name": "Oct", "Sales": 19198.73, "Profit": 3044.43}, {"Order Year": 2023, "Order Month": 11, "Order Month Name": "Nov", "Sales": 13260.68, "Profit": 1915.15}, {"Order Year": 2023, "Order Month": 12, "Order Month Name": "Dec", "Sales": 12464.28, "Profit": 2149.09}, {"Order Year": 2024, "Order Month": 1, "Order Month Name": "Jan", "Sales": 9133.16, "Profit": 1780.87}, {"Order Year": 2024, "Order Month": 2, "Order Month Name": "Feb", "Sales": 10295.68, "Profit": 1255.67}, {"Order Year": 2024, "Order Month": 3, "Order Month Name": "Mar", "Sales": 15269.52, "Profit": 2968.97}, {"Order Year": 2024, "Order Month": 4, "Order Month Name": "Apr", "Sales": 14916.85, "Profit": 2266.31}, {"Order Year": 2024, "Order Month": 5, "Order Month Name": "May", "Sales": 4977.03, "Profit": 578.84}, {"Order Year": 2024, "Order Month": 6, "Order Month Name": "Jun", "Sales": 11782.79, "Profit": 2095.53}, {"Order Year": 2024, "Order Month": 7, "Order Month Name": "Jul", "Sales": 10937.71, "Profit": 1689.33}, {"Order Year": 2024, "Order Month": 8, "Order Month Name": "Aug", "Sales": 16520.4, "Profit": 2704.75}, {"Order Year": 2024, "Order Month": 9, "Order Month Name": "Sep", "Sales": 9763.25, "Profit": 1277.6}, {"Order Year": 2024, "Order Month": 10, "Order Month Name": "Oct", "Sales": 7456.56, "Profit": 1139.1}, {"Order Year": 2024, "Order Month": 11, "Order Month Name": "Nov", "Sales": 21549.15, "Profit": 3535.58}, {"Order Year": 2024, "Order Month": 12, "Order Month Name": "Dec", "Sales": 12463.03, "Profit": 1659.08}], "by_ship_speed": [{"Shipping Speed": "Express", "Orders": 115}, {"Shipping Speed": "Slow", "Orders": 215}, {"Shipping Speed": "Standard", "Orders": 165}], "by_profit_cat": [{"Profit Category": "High Profit", "Orders": 153}, {"Profit Category": "Low Profit", "Orders": 33}, {"Profit Category": "Moderate Profit", "Orders": 309}], "raw_sample": [{"Category": "Furniture", "Region": "East", "Segment": "Consumer", "Sales": 527.54, "Profit": 23.43, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Low Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Corporate", "Sales": 1446.24, "Profit": 142.76, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Corporate", "Sales": 296.38, "Profit": 90.17, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Consumer", "Sales": 443.3, "Profit": 33.42, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Home Office", "Sales": 1914.34, "Profit": 308.31, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Consumer", "Sales": 951.41, "Profit": 134.19, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Corporate", "Sales": 1830.62, "Profit": 145.39, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Consumer", "Sales": 135.06, "Profit": 36.66, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Home Office", "Sales": 397.08, "Profit": 19.2, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Low Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Home Office", "Sales": 352.43, "Profit": 65.59, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Corporate", "Sales": 1536.9, "Profit": 200.86, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Corporate", "Sales": 217.02, "Profit": 6.14, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Low Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Consumer", "Sales": 1440.25, "Profit": 194.04, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Consumer", "Sales": 296.28, "Profit": 77.73, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Consumer", "Sales": 111.05, "Profit": 20.2, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Consumer", "Sales": 1245.08, "Profit": 168.48, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 74.39, "Profit": 14.04, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Corporate", "Sales": 842.51, "Profit": 799.73, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Home Office", "Sales": 332.63, "Profit": 35.58, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 253.91, "Profit": 17.03, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Consumer", "Sales": 291.56, "Profit": 15.22, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Consumer", "Sales": 231.33, "Profit": 43.37, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Corporate", "Sales": 490.09, "Profit": 37.94, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Consumer", "Sales": 139.81, "Profit": 37.09, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Home Office", "Sales": 30.57, "Profit": 5.78, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Consumer", "Sales": 275.07, "Profit": 41.54, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Consumer", "Sales": 739.67, "Profit": 50.86, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Corporate", "Sales": 815.08, "Profit": 198.34, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Home Office", "Sales": 202.24, "Profit": 5.73, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Low Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Home Office", "Sales": 398.21, "Profit": 32.86, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Home Office", "Sales": 131.09, "Profit": 27.0, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Home Office", "Sales": 1038.89, "Profit": 177.36, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Home Office", "Sales": 925.55, "Profit": 224.79, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Consumer", "Sales": 145.47, "Profit": 11.35, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Home Office", "Sales": 230.43, "Profit": 61.18, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Home Office", "Sales": 476.74, "Profit": 26.37, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Corporate", "Sales": 1845.7, "Profit": 469.35, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Home Office", "Sales": 315.24, "Profit": 19.63, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Corporate", "Sales": 1403.2, "Profit": 244.8, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Home Office", "Sales": 429.08, "Profit": 70.42, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Corporate", "Sales": 833.35, "Profit": 138.88, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Corporate", "Sales": 2603.22, "Profit": 333.33, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Home Office", "Sales": 2508.03, "Profit": 688.97, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Home Office", "Sales": 1686.5, "Profit": 205.02, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Corporate", "Sales": 1566.69, "Profit": 129.14, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 55.44, "Profit": 5.66, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 11.26, "Profit": 0.89, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 309.88, "Profit": 24.18, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Corporate", "Sales": 1022.46, "Profit": 60.33, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Corporate", "Sales": 520.64, "Profit": 95.83, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Corporate", "Sales": 1398.98, "Profit": 172.71, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Corporate", "Sales": 379.55, "Profit": 32.59, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Home Office", "Sales": 627.68, "Profit": 88.3, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Corporate", "Sales": 2620.7, "Profit": 500.08, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Home Office", "Sales": 1739.52, "Profit": 164.84, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Home Office", "Sales": 2727.34, "Profit": 247.16, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 136.0, "Profit": 16.59, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Home Office", "Sales": 2114.9, "Profit": 541.87, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Home Office", "Sales": 166.29, "Profit": 31.97, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Home Office", "Sales": 221.69, "Profit": 70.24, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Home Office", "Sales": 2294.06, "Profit": 401.08, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Home Office", "Sales": 1013.26, "Profit": 39.82, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Low Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Home Office", "Sales": 983.36, "Profit": 80.39, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Consumer", "Sales": 2284.77, "Profit": 490.69, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Corporate", "Sales": 1665.71, "Profit": 579.13, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Home Office", "Sales": 746.32, "Profit": 123.2, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Corporate", "Sales": 221.69, "Profit": 45.43, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Home Office", "Sales": 1551.18, "Profit": 339.66, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Consumer", "Sales": 250.19, "Profit": 50.21, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 42.04, "Profit": 9.96, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 121.21, "Profit": 33.22, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Home Office", "Sales": 682.53, "Profit": 107.53, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Corporate", "Sales": 1258.44, "Profit": 346.41, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Corporate", "Sales": 2039.28, "Profit": 372.21, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Consumer", "Sales": 726.87, "Profit": 161.69, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Home Office", "Sales": 2331.71, "Profit": 474.28, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Consumer", "Sales": 1587.79, "Profit": 177.23, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 457.18, "Profit": 148.22, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Corporate", "Sales": 1936.18, "Profit": 118.16, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Home Office", "Sales": 294.36, "Profit": 74.31, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Consumer", "Sales": 455.15, "Profit": 43.18, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Home Office", "Sales": 934.61, "Profit": 179.7, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Consumer", "Sales": 112.55, "Profit": 34.51, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Home Office", "Sales": 228.76, "Profit": 30.43, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Consumer", "Sales": 295.26, "Profit": 83.36, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Home Office", "Sales": 78.98, "Profit": 8.13, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Corporate", "Sales": 2338.49, "Profit": 135.4, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Consumer", "Sales": 2064.57, "Profit": 366.67, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Consumer", "Sales": 276.44, "Profit": 81.86, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 217.88, "Profit": 28.09, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Consumer", "Sales": 2861.71, "Profit": 198.34, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 336.66, "Profit": 105.07, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Corporate", "Sales": 1330.64, "Profit": 43.89, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Low Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Home Office", "Sales": 19.33, "Profit": 2.96, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Home Office", "Sales": 50.42, "Profit": 8.21, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Corporate", "Sales": 442.25, "Profit": 122.21, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Home Office", "Sales": 723.09, "Profit": 183.28, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Consumer", "Sales": 2306.7, "Profit": 342.4, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Home Office", "Sales": 190.55, "Profit": 9.01, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Low Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Consumer", "Sales": 2899.28, "Profit": 387.67, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Home Office", "Sales": 200.9, "Profit": 16.78, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Home Office", "Sales": 2187.59, "Profit": 176.85, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Corporate", "Sales": 234.66, "Profit": 21.01, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Home Office", "Sales": 1068.79, "Profit": 201.49, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Corporate", "Sales": 234.04, "Profit": 25.43, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Corporate", "Sales": 251.83, "Profit": 10.43, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Low Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Consumer", "Sales": 777.06, "Profit": 114.02, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Consumer", "Sales": 145.65, "Profit": 5.54, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Low Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Consumer", "Sales": 2443.29, "Profit": 595.69, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Home Office", "Sales": 695.1, "Profit": 50.85, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Consumer", "Sales": 1456.31, "Profit": 197.18, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Consumer", "Sales": 1116.17, "Profit": 178.84, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Corporate", "Sales": 1930.71, "Profit": 446.38, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Home Office", "Sales": 2840.31, "Profit": 210.57, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Corporate", "Sales": 487.85, "Profit": 147.21, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Corporate", "Sales": 1853.74, "Profit": 235.01, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Home Office", "Sales": 207.17, "Profit": 30.57, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Home Office", "Sales": 1999.83, "Profit": 479.31, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 181.76, "Profit": 22.24, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Corporate", "Sales": 490.51, "Profit": 28.24, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Corporate", "Sales": 665.41, "Profit": 78.94, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Home Office", "Sales": 140.24, "Profit": 37.77, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Corporate", "Sales": 401.57, "Profit": 71.95, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Consumer", "Sales": 87.49, "Profit": 16.11, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Home Office", "Sales": 476.63, "Profit": 44.28, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Corporate", "Sales": 304.52, "Profit": 49.21, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Home Office", "Sales": 1023.14, "Profit": 61.11, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Corporate", "Sales": 931.48, "Profit": 273.07, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Corporate", "Sales": 397.88, "Profit": 34.38, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Consumer", "Sales": 307.91, "Profit": 43.97, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Consumer", "Sales": 2046.72, "Profit": 641.42, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Consumer", "Sales": 679.19, "Profit": 227.02, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Home Office", "Sales": 1204.03, "Profit": 122.04, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Corporate", "Sales": 310.96, "Profit": 83.71, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Corporate", "Sales": 907.23, "Profit": 85.76, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 57.56, "Profit": 799.73, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Corporate", "Sales": 1636.28, "Profit": 129.43, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Corporate", "Sales": 2900.73, "Profit": 316.49, "Discount": 0.2, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Consumer", "Sales": 1468.64, "Profit": 93.37, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Home Office", "Sales": 221.69, "Profit": 53.07, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Home Office", "Sales": 1025.15, "Profit": 93.4, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Corporate", "Sales": 85.44, "Profit": 14.23, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 490.05, "Profit": 141.64, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Corporate", "Sales": 338.16, "Profit": 74.99, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Home Office", "Sales": 1028.55, "Profit": 272.64, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Home Office", "Sales": 1389.8, "Profit": 297.25, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Corporate", "Sales": 2076.91, "Profit": 402.8, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Home Office", "Sales": 1912.86, "Profit": 625.89, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Corporate", "Sales": 123.44, "Profit": 21.83, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Corporate", "Sales": 1930.81, "Profit": 403.52, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Home Office", "Sales": 1093.55, "Profit": 191.77, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Consumer", "Sales": 2786.8, "Profit": 519.19, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Corporate", "Sales": 325.9, "Profit": 88.31, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Corporate", "Sales": 570.65, "Profit": 71.34, "Discount": 0.1, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 10.66, "Profit": 32.21, "Discount": 0.3, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Home Office", "Sales": 1923.36, "Profit": 450.81, "Discount": 0.0, "Order Year": 2022, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Consumer", "Sales": 379.89, "Profit": 18.88, "Discount": 0.4, "Order Year": 2022, "Shipping Speed": "Slow", "Profit Category": "Low Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Consumer", "Sales": 370.85, "Profit": 26.75, "Discount": 0.1, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Home Office", "Sales": 1700.46, "Profit": 363.99, "Discount": 0.1, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Consumer", "Sales": 721.83, "Profit": 175.96, "Discount": 0.2, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Home Office", "Sales": 190.36, "Profit": 50.3, "Discount": 0.1, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 266.78, "Profit": 5.45, "Discount": 0.4, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Low Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Consumer", "Sales": 482.26, "Profit": 74.17, "Discount": 0.3, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "Central", "Segment": "Consumer", "Sales": 1215.68, "Profit": 330.86, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Consumer", "Sales": 1176.08, "Profit": 165.27, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Corporate", "Sales": 159.71, "Profit": 22.08, "Discount": 0.3, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Home Office", "Sales": 2551.04, "Profit": 267.63, "Discount": 0.4, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Home Office", "Sales": 446.51, "Profit": 115.43, "Discount": 0.1, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Home Office", "Sales": 112.42, "Profit": 14.48, "Discount": 0.4, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Corporate", "Sales": 201.33, "Profit": 20.64, "Discount": 0.2, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Home Office", "Sales": 313.85, "Profit": 37.9, "Discount": 0.4, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Corporate", "Sales": 944.23, "Profit": 210.22, "Discount": 0.2, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Consumer", "Sales": 132.38, "Profit": 17.66, "Discount": 0.3, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "East", "Segment": "Consumer", "Sales": 1071.69, "Profit": 107.37, "Discount": 0.4, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Consumer", "Sales": 189.73, "Profit": 26.09, "Discount": 0.3, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Consumer", "Sales": 71.08, "Profit": 9.44, "Discount": 0.4, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Corporate", "Sales": 816.63, "Profit": 132.23, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Corporate", "Sales": 51.28, "Profit": 9.41, "Discount": 0.1, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Home Office", "Sales": 2686.48, "Profit": 304.71, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Home Office", "Sales": 2885.18, "Profit": 795.38, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Consumer", "Sales": 2271.72, "Profit": 198.34, "Discount": 0.4, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Corporate", "Sales": 201.37, "Profit": 48.38, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 47.42, "Profit": 13.72, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Corporate", "Sales": 337.52, "Profit": 61.91, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Corporate", "Sales": 56.13, "Profit": 12.14, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "South", "Segment": "Corporate", "Sales": 1386.37, "Profit": 181.16, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Consumer", "Sales": 1096.15, "Profit": 143.19, "Discount": 0.3, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "West", "Segment": "Corporate", "Sales": 403.02, "Profit": 51.53, "Discount": 0.1, "Order Year": 2023, "Shipping Speed": "Express", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "South", "Segment": "Consumer", "Sales": 2209.93, "Profit": 440.25, "Discount": 0.2, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Consumer", "Sales": 18.32, "Profit": 1.14, "Discount": 0.3, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Home Office", "Sales": 359.04, "Profit": 66.32, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "South", "Segment": "Home Office", "Sales": 320.9, "Profit": 90.07, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Home Office", "Sales": 51.43, "Profit": 10.45, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Consumer", "Sales": 253.87, "Profit": 21.53, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "East", "Segment": "Home Office", "Sales": 1325.73, "Profit": 93.0, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "Central", "Segment": "Consumer", "Sales": 278.2, "Profit": 34.65, "Discount": 0.2, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}, {"Category": "Office Supplies", "Region": "East", "Segment": "Home Office", "Sales": 442.13, "Profit": 55.36, "Discount": 0.2, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Technology", "Region": "Central", "Segment": "Home Office", "Sales": 607.28, "Profit": 152.56, "Discount": 0.0, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "High Profit"}, {"Category": "Technology", "Region": "West", "Segment": "Consumer", "Sales": 2444.94, "Profit": 388.59, "Discount": 0.2, "Order Year": 2023, "Shipping Speed": "Standard", "Profit Category": "Moderate Profit"}, {"Category": "Furniture", "Region": "West", "Segment": "Home Office", "Sales": 865.57, "Profit": 100.04, "Discount": 0.2, "Order Year": 2023, "Shipping Speed": "Slow", "Profit Category": "Moderate Profit"}]};
+
+// Chart.js global defaults
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 11;
+
+const COLORS = ['#00d4ff','#7c3aed','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6','#14b8a6','#f97316','#6366f1'];
+
+let charts = {};
+
+function fmt$(n) { return '$' + Number(n).toLocaleString('en-US', {maximumFractionDigits:0}); }
+function fmtK(n) {
+  if(n >= 1000000) return '$'+(n/1000000).toFixed(1)+'M';
+  if(n >= 1000) return '$'+(n/1000).toFixed(0)+'K';
+  return '$'+n.toFixed(0);
+}
+
+// ─── Filter logic ──────────────────────────────────────────
+function getFilters() {
+  return {
+    region:  document.getElementById('f-region').value,
+    category: document.getElementById('f-category').value,
+    segment: document.getElementById('f-segment').value,
+    year:    document.getElementById('f-year').value,
+    profcat: document.getElementById('f-profcat').value,
+  };
+}
+
+function filterData(data) {
+  const f = getFilters();
+  return data.filter(r => {
+    if(f.region   !== 'All' && r.Region          !== f.region)   return false;
+    if(f.category !== 'All' && r.Category        !== f.category) return false;
+    if(f.segment  !== 'All' && r.Segment         !== f.segment)  return false;
+    if(f.year     !== 'All' && String(r['Order Year']) !== f.year) return false;
+    if(f.profcat  !== 'All' && r['Profit Category'] !== f.profcat) return false;
+    return true;
+  });
+}
+
+function groupBy(data, key, aggFields) {
+  const map = {};
+  data.forEach(r => {
+    const k = r[key];
+    if(!map[k]) { map[k] = {[key]:k}; aggFields.forEach(f => map[k][f]=0); }
+    aggFields.forEach(f => map[k][f] += (r[f]||0));
+  });
+  return Object.values(map);
+}
+
+function applyFilters() {
+  const filtered = filterData(RAW.raw_sample);
+  updateKPIs(filtered);
+  updateAllCharts(filtered);
+  updateTable(filtered);
+}
+
+function resetFilters() {
+  ['f-region','f-category','f-segment','f-year','f-profcat']
+    .forEach(id => document.getElementById(id).value = 'All');
+  applyFilters();
+}
+
+// ─── KPIs ──────────────────────────────────────────────────
+function updateKPIs(data) {
+  const sales  = data.reduce((s,r)=>s+(r.Sales||0),0);
+  const profit = data.reduce((s,r)=>s+(r.Profit||0),0);
+  const orders = data.length;
+  const disc   = data.length ? data.reduce((s,r)=>s+(r.Discount||0),0)/data.length*100 : 0;
+  const margin = sales>0 ? profit/sales*100 : 0;
+  document.getElementById('kpi-sales').textContent    = fmtK(sales);
+  document.getElementById('kpi-profit').textContent   = fmtK(profit);
+  document.getElementById('kpi-orders').textContent   = orders;
+  document.getElementById('kpi-discount').textContent = disc.toFixed(1)+'%';
+  document.getElementById('kpi-margin').textContent   = margin.toFixed(1)+'%';
+}
+
+// ─── Charts ────────────────────────────────────────────────
+function makeChart(id, type, data, options={}) {
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {type, data, options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{labels:{color:'#94a3b8',font:{size:10}}} },
+    ...options
+  }});
+}
+
+function updateAllCharts(data) {
+  // 1. Trend line
+  const byYearMonth = {};
+  data.forEach(r => {
+    const key = r['Order Year']+'-'+String(r['Order Month']||0).padStart(2,'0');
+    if(!byYearMonth[key]) byYearMonth[key] = {sales:0,profit:0,label:key};
+    byYearMonth[key].sales  += r.Sales||0;
+    byYearMonth[key].profit += r.Profit||0;
+  });
+  // Use full monthly data if no filter, filtered otherwise  
+  const trendKeys = Object.keys(byYearMonth).sort();
+  const trendLabels = trendKeys.map(k => k);
+  makeChart('chart-trend','line',{
+    labels: trendLabels.length ? trendLabels : RAW.by_month.map(r=>r['Order Year']+'-'+String(r['Order Month']).padStart(2,'0')),
+    datasets:[
+      { label:'Sales', data: trendLabels.length ? trendKeys.map(k=>byYearMonth[k].sales) : RAW.by_month.map(r=>r.Sales),
+         borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)',
+         fill:true, tension:0.4, pointRadius:2, borderWidth:2 },
+      { label:'Profit', data: trendLabels.length ? trendKeys.map(k=>byYearMonth[k].profit) : RAW.by_month.map(r=>r.Profit),
+         borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.08)',
+         fill:true, tension:0.4, pointRadius:2, borderWidth:2 }
+    ]
+  },{
+    plugins:{ legend:{position:'top'} },
+    scales:{
+      x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{maxRotation:45, color:'#64748b'} },
+      y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{ color:'#64748b', callback: v=>fmtK(v) } }
+    }
+  });
+
+  // 2. Region pie
+  const regData = groupBy(data,'Region',['Sales','Profit']);
+  if(!regData.length) {
+    makeChart('chart-region','doughnut',{labels:RAW.by_region.map(r=>r.Region),
+      datasets:[{data:RAW.by_region.map(r=>r.Sales),backgroundColor:COLORS,borderWidth:0}]},
+      {plugins:{legend:{position:'bottom'}} });
+  } else {
+    makeChart('chart-region','doughnut',{labels:regData.map(r=>r.Region),
+      datasets:[{data:regData.map(r=>r.Sales),backgroundColor:COLORS,borderWidth:0}]},
+      {plugins:{legend:{position:'bottom'}} });
+  }
+
+  // 3. Category bar
+  const catData = groupBy(data,'Category',['Sales','Profit']);
+  const catSrc = catData.length ? catData : RAW.by_category;
+  makeChart('chart-cat','bar',{
+    labels: catSrc.map(r=>r.Category),
+    datasets:[
+      {label:'Sales', data:catSrc.map(r=>r.Sales), backgroundColor:'rgba(0,212,255,0.7)', borderRadius:4},
+      {label:'Profit',data:catSrc.map(r=>r.Profit),backgroundColor:'rgba(16,185,129,0.7)', borderRadius:4}
+    ]
+  },{
+    plugins:{legend:{position:'top'}},
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b'}},
+      y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',callback:v=>fmtK(v)}}
+    }
+  });
+
+  // 4. Segment bar
+  const segData = groupBy(data,'Segment',['Sales','Profit']);
+  const segSrc = segData.length ? segData : RAW.by_segment;
+  makeChart('chart-seg','bar',{
+    labels: segSrc.map(r=>r.Segment),
+    datasets:[
+      {label:'Sales', data:segSrc.map(r=>r.Sales), backgroundColor:['rgba(124,58,237,0.7)','rgba(0,212,255,0.7)','rgba(245,158,11,0.7)'], borderRadius:4},
+    ]
+  },{
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b'}},
+      y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',callback:v=>fmtK(v)}}
+    }
+  });
+
+  // 5. Sub-category horizontal bar
+  const subSrc = RAW.by_subcat;
+  makeChart('chart-subcat','bar',{
+    labels: subSrc.map(r=>r['Sub-Category']),
+    datasets:[{
+      label:'Profit', data:subSrc.map(r=>r.Profit),
+      backgroundColor: subSrc.map(r=>r.Profit>5000?'rgba(16,185,129,0.8)':r.Profit>2000?'rgba(0,212,255,0.8)':'rgba(245,158,11,0.8)'),
+      borderRadius:4
+    }]
+  },{
+    indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',callback:v=>fmtK(v)}},
+      y:{grid:{display:false},ticks:{color:'#94a3b8',font:{size:10}}}
+    }
+  });
+
+  // 6. Shipping speed donut
+  makeChart('chart-ship','doughnut',{
+    labels: RAW.by_ship_speed.map(r=>r['Shipping Speed']),
+    datasets:[{data:RAW.by_ship_speed.map(r=>r.Orders),
+      backgroundColor:['#10b981','#00d4ff','#f59e0b'], borderWidth:0}]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:9}}}},
+    cutout:'60%'
+  });
+
+  // 7. Profit category donut
+  makeChart('chart-profcat','doughnut',{
+    labels: RAW.by_profit_cat.map(r=>r['Profit Category']),
+    datasets:[{data:RAW.by_profit_cat.map(r=>r.Orders),
+      backgroundColor:['#10b981','#00d4ff','#f59e0b','#ef4444'],borderWidth:0}]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:9}}}},
+    cutout:'60%'
+  });
+}
+
+// ─── Table ─────────────────────────────────────────────────
+function updateTable(data) {
+  const tbody = document.getElementById('table-body');
+  const show = data.slice(0,100);
+  tbody.innerHTML = show.map((r,i)=>{
+    const pillCls = r['Profit Category']==='High Profit'?'pill-high':r['Profit Category']==='Low Profit'?'pill-low':'pill-mod';
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td>${r.Category||'—'}</td>
+      <td>${r.Region||'—'}</td>
+      <td>${r.Segment||'—'}</td>
+      <td style="color:var(--accent)">${fmt$(r.Sales||0)}</td>
+      <td style="color:var(--accent3)">${fmt$(r.Profit||0)}</td>
+      <td>${((r.Discount||0)*100).toFixed(0)}%</td>
+      <td>${r['Order Year']||'—'}</td>
+      <td>${r['Shipping Speed']||'—'}</td>
+      <td><span class="pill ${pillCls}">${r['Profit Category']||'—'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// Init
+applyFilters();
+</script>
+</body>
+</html>
